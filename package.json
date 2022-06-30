@@ -10,7 +10,9 @@
   "license": "ISC",
   "dependencies": {
     "child_process": "^1.0.2",
+    "cli-color": "^2.0.2",
     "fs": "^0.0.1-security",
+    "keypress": "^0.2.1",
     "md5-file": "^5.0.0",
     "minimist": "^1.2.6",
     "path": "^0.12.7"
