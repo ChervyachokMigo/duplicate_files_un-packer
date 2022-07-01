@@ -4,7 +4,7 @@ const args = require('minimist')(process.argv.slice(2), {'--':true});
 var keypress = require('keypress');
 var colors = require("cli-color");
 
-console.log(args.json);
+console.log(`Set filelist: `, args.json);
 var source = args.json;
 
 function json2array(json){
@@ -19,7 +19,6 @@ function json2array(json){
 function readJson(source){
     let filename = getpath.basename(source, getpath.extname(source));
     let jsonpath = `${getpath.dirname(source)}\\${filename}.json`;
-    console.log(`Filelist set: ${jsonpath}`);
     let jsonfile = fs.readFileSync(jsonpath);
     let files = JSON.parse(jsonfile);
     files = json2array(files);
@@ -32,6 +31,7 @@ function readJson(source){
 var ux = {
     cursor_offset: 0,
     cursor_offset_local: 0,
+    cursor_selector: 0,
     display_files_max: 35,
 }
 var files = readJson(source);
@@ -43,6 +43,8 @@ files = files.sort((a,b)=>{
 if (files.length<ux.display_files_max){
     ux.display_files_max = files.length;
 }
+console.log(`Filelist Loaded.`, colors.white(`\nPress any key to show it..`));
+
 
 keypress(process.stdin);
  
@@ -82,25 +84,31 @@ process.stdin.on('keypress', function (ch, key) {
                 if(ux.cursor_offset<0) ux.cursor_offset = 0;
             }
         }
+        ux.cursor_selector = ux.cursor_offset + ux.cursor_offset_local;
+
+        refresh();
+
         if (key.name == 'escape'){
             process.stdin.pause();
         }
     }
-    refresh();
-    //console.log('got "keypress"', key);
-    function refresh(){
-        console.clear();
-        console.log(`\n`,colors.blueBright(`filename`), colors.blueBright(`copies`));
-        for(let i = ux.cursor_offset; i < ux.display_files_max+ux.cursor_offset; i++){
-            if (i == (ux.cursor_offset+ ux.cursor_offset_local)){
-                console.log(colors.white(files[i].pathes[0].path), files[i].pathes.length);
-            } else {
-                console.log(colors.blackBright(files[i].pathes[0].path), files[i].pathes.length);
-            }
-        }
-        console.log(colors.blackBright([`${ux.cursor_offset_local}`, `${ux.cursor_offset}`]));
-    }
+
 });
+
+
+//console.log('got "keypress"', key);
+function refresh(){
+    console.clear();
+    console.log(`\n`,colors.blueBright(`filename`), colors.blueBright(`copies`));
+    for(let i = ux.cursor_offset; i < ux.display_files_max+ux.cursor_offset; i++){
+        if (i == (ux.cursor_selector)){
+            console.log(colors.white(files[i].pathes[0].path), files[i].pathes.length);
+        } else {
+            console.log(colors.blackBright(files[i].pathes[0].path), files[i].pathes.length);
+        }
+    }
+    console.log(colors.blackBright([`${ux.cursor_selector}`, colors.yellow(files.length)]));
+}
 
 process.stdin.setRawMode(true);
 process.stdin.resume();
