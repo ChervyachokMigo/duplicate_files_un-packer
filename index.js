@@ -49,6 +49,7 @@ function checkargs(){
         if (typeof args.o !== 'undefined') output = args.o;
         if (typeof args.out !== 'undefined') output = args.out;
         if (typeof args.output !== 'undefined') output = args.output;
+        
         console.log(`Output:`, output);
     } else {
         console.log(`set destination. retry`);
@@ -57,22 +58,39 @@ function checkargs(){
     console.log(`==============================`);
     
     if (typeof args.p !== 'undefined' || typeof args.pack !== 'undefined'){
+
+        input = normalize(input);
+        output = normalize(output);
+
+        if (getpath.isAbsolute(output) === false){
+            output = `${input}\\${output}`;
+            console.log(`Output set: ${output}`);
+        }
+
+        console.log(`Archive name set: ${getpath.basename(output , getpath.extname(output))}`);
+
+        //create directories
+        if (!fs.existsSync(`${output}`)) {
+            fs.mkdirSync(`${output}`, {recursive: true}); 
+        }
+
         console.log(`process starting...`);
+
         if (config.debug_remove_old_files == true){
             console.log(`clear old archive files..`);
             clearfiles(output, getpath.basename(output , getpath.extname(output)));
             deletefile(`${output}\\${getpath.basename(output , getpath.extname(output))}.zip`);
         }
-        //create directories
-        if (!fs.existsSync(`${output}`)) {
-            fs.mkdirSync(`${output}`, {recursive: true}); 
-        }
+        
         pack(input, output);    //(packpath, archivename);
         zip(output);
+
         if (config.debug_delete_package_files_after_un_zipping == true){
             clearfiles(output, getpath.basename(output , getpath.extname(output)));
         }
+
         console.log(`process complete.`);
+
         return true;
     }
     if (typeof args.u !== 'undefined' || typeof args.unpack !== 'undefined'){
@@ -85,23 +103,26 @@ function checkargs(){
             console.log(`Output set: ${output}`);
         }
 
+        console.log(`process starting...`);
+
         try{
-            console.log(`process starting...`);
             var unpackresult = unpack(input, output);  //(archivepath, unpackpath);
             if (unpackresult == false){
                 return false;
             }
-            //restorePathes(input, output);
         } catch (e){
             if (e.code === 'ENOENT') {
                 console.error (`You invalid. retry`);
             } 
             console.error(e);
         }
+
         if (config.debug_delete_package_files_after_un_zipping == true){
             clearfiles(output, getpath.basename(input, getpath.extname(input)));
         }
+
         console.log(`process complete.`);
+
         return true;
     }
 }
@@ -419,6 +440,7 @@ function cleanEmptyFoldersRecursively(folder) {
   }
 
 function normalize(str){
+    str = str.toString();
     str = str.replaceAll(/\/{2,}/g,'\\');
     str = str.replace(/\\{2,}/g,'\\');
     if (str.endsWith(`\\`)){
