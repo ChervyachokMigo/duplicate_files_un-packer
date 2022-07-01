@@ -60,18 +60,31 @@ function checkargs(){
         console.log(`process starting...`);
         if (config.debug_remove_old_files == true){
             console.log(`clear old archive files..`);
-            clearfiles(input, output);
-            deletefile(`${input}\\${output}.zip`);
+            clearfiles(output, getpath.basename(output , getpath.extname(output)));
+            deletefile(`${output}\\${getpath.basename(output , getpath.extname(output))}.zip`);
+        }
+        //create directories
+        if (!fs.existsSync(`${output}`)) {
+            fs.mkdirSync(`${output}`, {recursive: true}); 
         }
         pack(input, output);    //(packpath, archivename);
-        zip(input, output);
+        zip(output);
         if (config.debug_delete_package_files_after_un_zipping == true){
-            clearfiles(input, output);
+            clearfiles(output, getpath.basename(output , getpath.extname(output)));
         }
         console.log(`process complete.`);
         return true;
     }
     if (typeof args.u !== 'undefined' || typeof args.unpack !== 'undefined'){
+        
+        input = normalize(input);
+        output = normalize(output);
+
+        if (getpath.isAbsolute(output) === false){
+            output = `${getpath.dirname(input)}\\${output}`;
+            console.log(`Output set: ${output}`);
+        }
+
         try{
             console.log(`process starting...`);
             var unpackresult = unpack(input, output);  //(archivepath, unpackpath);
@@ -86,29 +99,32 @@ function checkargs(){
             console.error(e);
         }
         if (config.debug_delete_package_files_after_un_zipping == true){
-            clearfiles(`${getpath.dirname(input)}\\${getpath.basename(output)}`, getpath.basename(input,getpath.extname(input)));
+            clearfiles(output, getpath.basename(input, getpath.extname(input)));
         }
         console.log(`process complete.`);
         return true;
     }
 }
 
-function clearfiles(path, archivename){
+function clearfiles(dest, archivename){
     console.log(`clearing folder..`);
-    deletefile(`${path}\\${archivename}_skipped.log`);
-    deletefile(`${path}\\${archivename}_info.json`);
-    deletefile(`${path}\\${archivename}.pk`);
-    deletefile(`${path}\\${archivename}_zip_filelist.txt`);
+    deletefile(`${dest}\\${archivename}_skipped.log`);
+    deletefile(`${dest}\\${archivename}_info.json`);
+    deletefile(`${dest}\\${archivename}.pk`);
+    deletefile(`${dest}\\${archivename}_zip_filelist.txt`);
     console.log(`finish clear.`)
 }
 
 function deletefile(pathname){
-    try{ fs.rmSync(pathname); console.log(`deleted:`, pathname); } catch (e){};
+    try{ fs.rmSync(pathname); console.log(`deleted:`, pathname); } catch (e){
+        //console.log(e);
+    };
 }
 
-function pack(path, archivename){
+function pack(source, dest){
+    var archivename = getpath.basename(dest,getpath.extname(dest));
     console.log(`pack started...`);
-    var startpath = path;
+
     function readdirRecursive(_path){
         var files = [];
         var dir = fs.readdirSync(_path);
@@ -122,10 +138,10 @@ function pack(path, archivename){
                     let size = fs.statSync(nowpath).size; 
                     if (size < 2000000000){
                         let md5file = md5hash.sync(nowpath);
-                        files.push({path: nowpath.substring(startpath.length+1), size: size, md5: md5file});
+                        files.push({path: nowpath.substring(source.length+1), size: size, md5: md5file});
                     } else {
                         console.log(`skipped large file: `, nowpath);
-                        fs.appendFileSync(`${startpath}\\${archivename}_skipped.log`, `${nowpath.substring(startpath.length+1)}\n`, `utf-8`);
+                        fs.appendFileSync(`${dest}\\${archivename}_skipped.log`, `${nowpath.substring(source.length+1)}\n`, `utf-8`);
                     }
                 } catch (e){
                     console.log(e);
@@ -134,48 +150,48 @@ function pack(path, archivename){
         }
         return files;
     }
-    console.log(`scanning folder: `, path);
-    var AllFiles = readdirRecursive(path, archivename);
+    console.log(`scanning folder: `, source);
+    var AllFiles = readdirRecursive(source, archivename);
     console.log(`found ${AllFiles.length} files`);
     var filesdata = compareFilelistArrays(AllFiles, AllFiles);
-    archiveStore(path, archivename, filesdata);
+    archiveStore(source, dest, archivename, filesdata);
     console.log(`pack finished.`);
 }
 
-function zip(path, filename){
-    console.log(`starting zippping..`, `${path}\\${filename}.zip`);
+function zip(dest){
+    var filename = getpath.basename(dest,getpath.extname(dest));
+    console.log(`starting zippping..`, `${dest}\\${filename}.zip`);
     var skippedFileList = '';
-    if (fs.existsSync(`${path}\\${filename}_skipped.log`)) {
+    if (fs.existsSync(`${dest}\\${filename}_skipped.log`)) {
         //make file list
-        skippedFileList = fs.readFileSync(`${path}\\${filename}_skipped.log`, `utf-8`);
+        skippedFileList = fs.readFileSync(`${dest}\\${filename}_skipped.log`, `utf-8`);
         skippedFileList = skippedFileList.toString(`utf-8`).split(`\n`);
         for (let filenum in skippedFileList){
             if (skippedFileList[filenum].length>0){
-                //fs.appendFileSync(`${path}\\${filename}_zip_filelist.txt`, `${path}\\${skippedfilepath}\n`);
                 skippedFileList[filenum] = `"${skippedFileList[filenum]}"`;
             }
         }
-        fs.appendFileSync(`${path}\\${filename}_zip_filelist.txt`, `${path}\\${filename}_skipped.log\n`);
+        fs.appendFileSync(`${dest}\\${filename}_zip_filelist.txt`, `${dest}\\${filename}_skipped.log\n`);
         skippedFileList = skippedFileList.join(" ");
     }
     
 
-    if (fs.existsSync(`${path}\\${filename}_info.json`) && fs.existsSync(`${path}\\${filename}.pk`)) {
-        fs.appendFileSync(`${path}\\${filename}_zip_filelist.txt`, `${path}\\${filename}_info.json\n`);
-        fs.appendFileSync(`${path}\\${filename}_zip_filelist.txt`, `${path}\\${filename}.pk\n`);
+    if (fs.existsSync(`${dest}\\${filename}_info.json`) && fs.existsSync(`${dest}\\${filename}.pk`)) {
+        fs.appendFileSync(`${dest}\\${filename}_zip_filelist.txt`, `${dest}\\${filename}_info.json\n`);
+        fs.appendFileSync(`${dest}\\${filename}_zip_filelist.txt`, `${dest}\\${filename}.pk\n`);
     } else {
         console.error(`package files not exists!`);
         return false
     }
     
-    ps.execSync(`cd /D "${path}" && ${sevenzip} a -mx0 "${path}\\${filename}.zip" -ir@"${path}\\${filename}_zip_filelist.txt" ${skippedFileList}`);
+    ps.execSync(`cd /D "${dest}" && "${sevenzip}" a -mx0 "${dest}\\${filename}.zip" -ir@"${dest}\\${filename}_zip_filelist.txt" ${skippedFileList}`);
 
     console.log(`finish zipping.` );
 }
 
 function unzip(source, dest){
     console.log(`unzipping started...`);
-    ps.execSync(`${sevenzip} x -y "${source}" -o"${dest}`);
+    ps.execSync(`"${sevenzip}" x -y "${source}" -o"${dest}`);
     console.log(`unzip finished.`);
 }
 
@@ -250,9 +266,9 @@ function compareFilelistArrays(FirstArray, SecondArray){
     return {unique: _uniqueFiles, similar: _similarFiles};
 }
 
-function archiveStore(path, archivename, archivedata){
+function archiveStore(source, dest, archivename, archivedata){
     var jsondata = [];
-    console.log(`saving archive: `, `${path}\\${archivename}.pk`);
+    console.log(`saving archive: `, `${dest}\\${archivename}.pk`);
 
     console.log(`saving ${archivedata.unique.length+archivedata.similar.length} files`);
 
@@ -262,8 +278,8 @@ function archiveStore(path, archivename, archivedata){
             let filePath = files.length>1?files[0].path:files.path;
 
             if (config.debug_no_store_archive == false){
-                let data = fs.readFileSync(`${path}\\${filePath}`);
-                fs.appendFileSync(`${path}\\${archivename}.pk`,data);
+                let data = fs.readFileSync(`${source}\\${filePath}`);
+                fs.appendFileSync(`${dest}\\${archivename}.pk`,data);
             }
 
             let pathes = files.length>1?{... files}:{... [files]};
@@ -274,8 +290,8 @@ function archiveStore(path, archivename, archivedata){
     saveArchive(archivedata.unique);
     saveArchive(archivedata.similar);
 
-    console.log(`saving filelist: `, `${path}\\${archivename}_info.json`);
-    fs.writeFileSync(`${path}\\${archivename}_info.json`, JSON.stringify({... jsondata}), {encoding:'utf-8'});
+    console.log(`saving filelist: `, `${dest}\\${archivename}_info.json`);
+    fs.writeFileSync(`${dest}\\${archivename}_info.json`, JSON.stringify({... jsondata}), {encoding:'utf-8'});
 };
 
 function unpack(source, dest){
@@ -303,14 +319,6 @@ function unpack(source, dest){
             files[i].pathes = json2array(files[i].pathes);
         }
         return files
-    }
-
-    source = normalize(source);
-    dest = normalize(dest);
-
-    if (getpath.isAbsolute(dest) === false){
-        dest = `${getpath.dirname(source)}\\${dest}`;
-        console.log(`Output set: ${dest}`);
     }
 
     //create directories
