@@ -7,6 +7,11 @@ var colors = require("cli-color");
 console.log(`Set filelist: `, args.json);
 var source = args.json;
 
+if (getpath.extname(source) !== `.json`){
+    console.log(colors.yellow(`wrong filelist. retry`));
+    return false;
+}
+
 function json2array(json){
     var result = [];
     var keys = Object.keys(json);

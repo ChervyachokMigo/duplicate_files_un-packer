@@ -1,5 +1,6 @@
 @echo off
 cls
 color 13
-node explorer.js --json %~1
+cd /D "%~dp0"
+node explorer.js --json "%~1"
 pause
