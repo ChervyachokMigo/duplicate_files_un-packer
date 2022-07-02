@@ -13,6 +13,7 @@ var config = {
     debug_check_all_files: true,
     debug_check_only_this_extentions: ['.mp4'],
     debug_delete_package_files_after_un_zipping: true,
+    debug_extended_output: false, 
 };
 console.log(`==============================`);
 console.log(`Duplicate Files (un)packer 1.0`);
@@ -20,6 +21,10 @@ console.log(`==============================`);
 
 checkargs();
 function checkargs(){
+    if (args.verbose !== `undefined`){
+        config.debug_extended_output = true;
+    }
+
     if (typeof args.p !== 'undefined' && typeof args.u !== 'undefined' || 
         typeof args.pack !== 'undefined' && typeof args.unpack !== 'undefined'){
         console.log(`something wrong. retry`);
@@ -63,7 +68,7 @@ function checkargs(){
         output = normalize(output);
 
         if (getpath.isAbsolute(output) === false){
-            output = `${input}\\${output}`;
+            output = `${getpath.dirname(input)}\\${output}`;
             console.log(`Output set: ${output}`);
         }
 
@@ -83,7 +88,7 @@ function checkargs(){
         }
         
         pack(input, output);    //(packpath, archivename);
-        zip(output);
+        zip(input, output);
 
         if (config.debug_delete_package_files_after_un_zipping == true){
             clearfiles(output, getpath.basename(output , getpath.extname(output)));
@@ -151,6 +156,9 @@ function pack(source, dest){
         var dir = fs.readdirSync(_path);
         for (let file of dir){
             var nowpath = `${_path}\\${file}`;
+            if (config.debug_extended_output == true){
+                console.log(`checking: ${file}`);
+            }
             if (fs.statSync(nowpath).isDirectory()){
                 var subfiles = readdirRecursive(nowpath);
                 files = [...files, ...subfiles];
@@ -179,7 +187,7 @@ function pack(source, dest){
     console.log(`pack finished.`);
 }
 
-function zip(dest){
+function zip(source, dest){
     var filename = getpath.basename(dest,getpath.extname(dest));
     console.log(`starting zippping..`, `${dest}\\${filename}.zip`);
     var skippedFileList = '';
@@ -189,11 +197,15 @@ function zip(dest){
         skippedFileList = skippedFileList.toString(`utf-8`).split(`\n`);
         for (let filenum in skippedFileList){
             if (skippedFileList[filenum].length>0){
-                skippedFileList[filenum] = `"${skippedFileList[filenum]}"`;
+                skippedFileList[filenum] = `"${source}\\${skippedFileList[filenum]}"`;
+                if (config.debug_extended_output == true){
+                    console.log(`add skipped large file: ${skippedFileList[filenum]}`)
+                }
             }
         }
-        fs.appendFileSync(`${dest}\\${filename}_zip_filelist.txt`, `${dest}\\${filename}_skipped.log\n`);
         skippedFileList = skippedFileList.join(" ");
+
+        fs.appendFileSync(`${dest}\\${filename}_zip_filelist.txt`, `${dest}\\${filename}_skipped.log\n`);
     }
     
 
@@ -299,6 +311,9 @@ function archiveStore(source, dest, archivename, archivedata){
             let filePath = files.length>1?files[0].path:files.path;
 
             if (config.debug_no_store_archive == false){
+                if (config.debug_extended_output == true){
+                    console.log(`add file to package: ${filePath}`);
+                }
                 let data = fs.readFileSync(`${source}\\${filePath}`);
                 fs.appendFileSync(`${dest}\\${archivename}.pk`,data);
             }
@@ -363,7 +378,10 @@ function unpack(source, dest){
         let size = files[num].size;
         let pathes = files[num].pathes;
         let FirstFilePath = pathes[0].path;
-        //console.log(pathes)
+
+        if (config.debug_extended_output == true){
+            console.log(`unpacking file: ${FirstFilePath}`);
+        }
 
         //create directories
         if (!fs.existsSync(getpath.dirname(`${dest}\\${FirstFilePath}`))) {
@@ -383,6 +401,9 @@ function unpack(source, dest){
             for (let i in pathes){
                 if (i>0){
                     let SecondFilePath = pathes[i].path;
+                    if (config.debug_extended_output == true){
+                        console.log(`copying file ${SecondFilePath}`);
+                    }
                     //create directories
                     if (fs.existsSync(getpath.dirname(`${dest}\\${SecondFilePath}`)) === false) {
                         fs.mkdirSync(getpath.dirname(`${dest}\\${SecondFilePath}`), {recursive: true}); 
