@@ -1,1 +1,0 @@
-explorer.bat "%USERPROFILE%\Desktop\arhivator\_arc_info.json"
