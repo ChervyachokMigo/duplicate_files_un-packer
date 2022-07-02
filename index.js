@@ -15,13 +15,18 @@ var config = {
     debug_delete_package_files_after_un_zipping: true,
     debug_extended_output: false, 
 };
+
 console.log(`==============================`);
 console.log(`Duplicate Files (un)packer 1.0`);
 console.log(`==============================`);
 
+var folder_total_size = 0;
+var zip_total_size = 0;
+
 checkargs();
+
 function checkargs(){
-    if (args.verbose !== `undefined`){
+    if (typeof args.verbose !== `undefined`){
         config.debug_extended_output = true;
     }
 
@@ -94,6 +99,16 @@ function checkargs(){
             clearfiles(output, getpath.basename(output , getpath.extname(output)));
         }
 
+        var total_compress = folder_total_size - zip_total_size;
+        var total_compress_procents = (1 - zip_total_size / folder_total_size) * 100; 
+
+        console.log(`==============================`);
+        console.log(`folder size: ${folder_total_size/1000/1000} MB`);
+        console.log(`zip size: ${zip_total_size/100/1000} MB`);
+        console.log(`total compress: ${total_compress/1000/1000}  MB`);
+        console.log(`compress effecienty: ${total_compress_procents} %`);
+        console.log(`==============================`);
+
         console.log(`process complete.`);
 
         return true;
@@ -150,7 +165,6 @@ function deletefile(pathname){
 function pack(source, dest){
     var archivename = getpath.basename(dest,getpath.extname(dest));
     console.log(`pack started...`);
-
     function readdirRecursive(_path){
         var files = [];
         var dir = fs.readdirSync(_path);
@@ -164,7 +178,8 @@ function pack(source, dest){
                 files = [...files, ...subfiles];
             } else {
                 try{
-                    let size = fs.statSync(nowpath).size; 
+                    let size = fs.statSync(nowpath).size;
+                    folder_total_size += size;
                     if (size < 2000000000){
                         let md5file = md5hash.sync(nowpath);
                         files.push({path: nowpath.substring(source.length+1), size: size, md5: md5file});
@@ -218,6 +233,8 @@ function zip(source, dest){
     }
     
     ps.execSync(`cd /D "${dest}" && "${sevenzip}" a -mx0 "${dest}\\${filename}.zip" -ir@"${dest}\\${filename}_zip_filelist.txt" ${skippedFileList}`);
+
+    zip_total_size = fs.statSync(`${dest}\\${filename}.zip`).size;
 
     console.log(`finish zipping.` );
 }
@@ -307,6 +324,7 @@ function archiveStore(source, dest, archivename, archivedata){
 
     function saveArchive(filesdata){
         for (let files of filesdata){
+
             let size = files.length>1?files[0].size:files.size;
             let filePath = files.length>1?files[0].path:files.path;
 
