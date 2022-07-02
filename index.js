@@ -103,9 +103,9 @@ function checkargs(){
         var total_compress_procents = (1 - zip_total_size / folder_total_size) * 100; 
 
         console.log(`==============================`);
-        console.log(`folder size: ${folder_total_size/1000/1000} MB`);
-        console.log(`zip size: ${zip_total_size/100/1000} MB`);
-        console.log(`total compress: ${total_compress/1000/1000}  MB`);
+        console.log(`folder size: ${folder_total_size/1000000} MB`);
+        console.log(`zip size: ${zip_total_size/1000000} MB`);
+        console.log(`total compress: ${total_compress/1000000}  MB`);
         console.log(`compress effecienty: ${total_compress_procents} %`);
         console.log(`==============================`);
 
